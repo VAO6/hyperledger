@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  hyperledger:
+    container_name: 'hyperledger'
+    build:
+      context: .
+    ports:
+      - 51000:51000 # use between this range: 51000 - 59000. Nice way to assign port and prevent service collisions: crc32(container_name) % (59000 - 51000) + 51000. https://simplycalc.com/crc32-text.php#
+    volumes:
+      - ..:/home/volume
+      - hyperledger-bashhistory:/commandhistory
+    # env_file:
+    #   - ../.envs/aws.env
+    #   - ../.envs/sls.env
+    #   - ../.envs/config.env
+    working_dir: /home/volume
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
+
+volumes:
+  hyperledger-bashhistory:
