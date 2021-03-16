@@ -23,6 +23,8 @@ func (s *SmartContract) Set(ctx contractapi.TransactionContextInterface, foodId 
 	
 	// aqui se hacen validaciones de sintaxis (ej que no llegara un error de tupo etc)
 	// ej if foodId is not string ..., que no exista en la blockchain etx
+	// tambien se debe validar que en el chaincode ya no exista un docuemnto con esa clave
+	// es un ledger con elementos clave valor, el cahincode, en una bd
 
 	food := Food {
 		Farmer: farmer,
@@ -37,6 +39,26 @@ func (s *SmartContract) Set(ctx contractapi.TransactionContextInterface, foodId 
 
 	return ctx.GetStub().PutState(foodId, foodAsBytes)
 
+}
+
+func (s *SmartContract) Query(ctx contractapi.TransactionContextInterface, foodId string) (*Food, error) {
+	foodAsBytes, err := ctx.GetStub().GetState(foodId)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read from world state: %s", err.Error())
+	}
+
+	foodAsBytes == nil {
+		return nil, fmt.Errorf("%s does not exist", err.Error())
+	}
+
+	food := new(Food)
+
+	err = json.Unmarshal(foodAsBytes, food)
+	if err != nil{
+		fmt.Printf("Unmarshal error: %s", err.Error())
+		return err
+	}
+	return food, nil
 }
 
 func main(){
