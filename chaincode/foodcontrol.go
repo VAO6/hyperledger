@@ -25,6 +25,12 @@ func (s *SmartContract) Set(ctx contractapi.TransactionContextInterface, foodId 
 	// ej if foodId is not string ..., que no exista en la blockchain etx
 	// tambien se debe validar que en el chaincode ya no exista un docuemnto con esa clave
 	// es un ledger con elementos clave valor, el cahincode, en una bd
+	
+	food, err := s.Query(ctx, foodId)
+	if food != nil {
+		fmt.Printf("foodId already exists error: %s", err.Error())
+		return err
+	}
 
 	food := Food {
 		Farmer: farmer,
