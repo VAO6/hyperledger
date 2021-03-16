@@ -35,7 +35,7 @@ public final class WalletManager implements ContractInterface {
 	public void initLedger(final Context ctx) {
 		
 	}
-	
+
 	/**
 	 * User wallet creation
 	 * 
@@ -46,10 +46,34 @@ public final class WalletManager implements ContractInterface {
 	 * @return
 	 */
 	@Transaction()
-	public Wallet createWallet(final Context ctx, final String walletId, final String tokenAmount, final String owner) {
+	public Wallet createWallet(final Context ctx, final String walletId, final String tokenAmountStr, final String owner) {
 
 		// Aqui deberia hacer las validaciones respecto a la chaincode para qeu no hubiera error, ej qu eno exista etc etc
-		
+		double tokenAmountDouble = 0.0;
+		try {
+			tokenAmountDouble = Double.parseDouble(tokenAmountStr);
+			if (tokenAmountDouble < 0) {
+				String errorMessage = String.format("Ampount %s error", tokenAmountDouble);
+				throw new ChaincodeException(errorMessage, WalletManagerErrors.AMOUNTFORMAT_ERROR.toString());
+			}
+		} catch (numberFormatException e) {
+			throw new ChaincodeException(e);
+		}
+
+		CahincodeStub stub = ctx.getStub();
+
+		String walletState = stub.getStringState(walletId); // ojo si le mando algo que no existe levanta error, por eso tengo que hacer val
+		if (!walletState.isEmpty()) {
+			String errorMessage = String.format("Wallet %s already exists", walletId);
+			System.out.print(errorMessage);
+			throw new ChaincodeException(errorMessage, WalletManagerErrors.WALLET_ALREADY_EXISTS.toString());
+		}
+
+		Wallet wallet = new Wallet(tokenAmountDouble, owner);
+		walletState = genson.serialize(wallet);
+		stub.putStringState(walletId, walletState);
+		return wallet;
+
 	}
 
 	/**
@@ -63,6 +87,16 @@ public final class WalletManager implements ContractInterface {
 	public Wallet getWallet(final Context ctx, final String walletId) {
 
 		// Aqui deberia hacer las validaciones respecto a la chaincode para qeu no hubiera error
+		ChaincodeStub stub = ctx.getStub();
+		String walletState = stub.getStringState();
+		if (!walletState.isEmpty()) {
+			String errorMessage = String.format("Wallet %s already exists", walletId);
+			System.out.print(errorMessage);
+			throw new ChaincodeException(errorMessage, WalletManagerErrors.WALLET_ALREADY_EXISTS.toString());
+		}
+
+		Wallet wallet = genson.deserialize(walletState, Wallet.class);
+		return wallet;
 
 	}
 
@@ -70,6 +104,46 @@ public final class WalletManager implements ContractInterface {
 	public String transfer(final Context ctx, final String fromWalletId, final String toWalletId, final String tokenAmountStr) {
 
 		// Aqui deberia hacer las validaciones respecto a la chaincode para qeu no hubiera error
+		double tokenAmountDouble = 0.0;
+		try {
+			tokenAmountDouble = Double.parseDouble(tokenAmountStr);
+			if (tokenAmountDouble < 0) {
+				String errorMessage = String.format("Ampount %s error", tokenAmountDouble);
+				throw new ChaincodeException(errorMessage, WalletManagerErrors.AMOUNTFORMAT_ERROR.toString());
+			}
+		} catch (numberFormatException e) {
+			throw new ChaincodeException(e);
+		}
 
+		CahincodeStub stub = ctx.getStub();
+		String fromWalletState = stub.getStringState(fromWalletId);
+		if (!fromWalletState.isEmpty()) {
+			String errorMessage = String.format("Wallet %s already exists", fromWalletId);
+			System.out.print(errorMessage);
+			throw new ChaincodeException(errorMessage, WalletManagerErrors.WALLET_NOT_FOUND.toString());
+		}
+		String toWalletState = stub.getStringState(toWalletId);
+		if (!toWalletState.isEmpty()) {
+			String errorMessage = String.format("Wallet %s already exists", toWalletId);
+			System.out.print(errorMessage);
+			throw new ChaincodeException(errorMessage, WalletManagerErrors.WALLET_NOT_FOUND.toString());
+		}
+
+		Wallet fromWallet = genson.deserialize(fromWalletState, Wallet.class);
+		Wallet toWallet = genson.deserialize(toWalletState, Wallet.class);
+
+		if (fromWallet.getTokenAmount() < tokenAmountDouble) {
+			throw new ChaincodeException("Token amount not enough", WalletManagerErrors.TOKENAMOUNTNOTENOUGH.toString());
+		}
+
+		Wallet newFromWallet = new Wallet(fromWallet.getTokenAmount() - tokenAmountDouble, fromWallet.getOwner());
+		Wallet newToWallet = new Wallet(toWallet.getTokenAmount() + tokenAmountDouble, toWallet.getOwner());
+
+		String newFromWalletState = genson.serialize(newFromWallet);
+		String newToWalletState = genson.serialize(newToWallet);
+		stub.putStringState(fromWalletId, newFromWalletState);
+		stub.putStringState(toWalletId, newToWalletState);
+
+		return "transfered";
 	}
 }
